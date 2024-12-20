@@ -1,0 +1,117 @@
+trigger:
+  branches:
+    include:
+      - main
+      - master
+  paths:
+    include:
+      - '**.tf'
+      - '**.tfvars'
+      - 'azure-pipelines.yml'
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+  paths:
+    include:
+      - '**.tf'
+      - '**.tfvars'
+      - 'azure-pipelines.yml'
+
+variables:
+  - group: terraform-secrets # Contains Azure credentials and Slack webhook
+  - name: COST_THRESHOLD
+    value: '1000' # Maximum allowed monthly cost in USD
+
+pool:
+  vmImage: 'ubuntu-latest'
+
+steps:
+- task: UsePythonVersion@0
+  inputs:
+    versionSpec: '3.10'
+    addToPath: true
+  displayName: 'Set up Python'
+
+# Install Terraform using bash script instead of deprecated task
+- bash: |
+    wget -O terraform.zip https://releases.hashicorp.com/terraform/1.5.0/terraform_1.5.0_linux_amd64.zip
+    unzip terraform.zip
+    sudo mv terraform /usr/local/bin
+    terraform version
+  displayName: 'Install Terraform'
+
+- bash: |
+    python -m pip install --upgrade pip
+    pip install -r requirements.txt
+  displayName: 'Install Python dependencies'
+
+- bash: |
+    terraform init
+  env:
+    ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+    ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+    ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+    ARM_TENANT_ID: $(AZURE_TENANT_ID)
+  displayName: 'Terraform init'
+
+- bash: |
+    terraform plan -out=plan.out
+    terraform show -json plan.out > plan.json
+  env:
+    ARM_CLIENT_ID: $(AZURE_CLIENT_ID)
+    ARM_CLIENT_SECRET: $(AZURE_CLIENT_SECRET)
+    ARM_SUBSCRIPTION_ID: $(AZURE_SUBSCRIPTION_ID)
+    ARM_TENANT_ID: $(AZURE_TENANT_ID)
+  displayName: 'Generate Terraform plan'
+
+- bash: |
+    python -m terrafin_calculator \
+      --plan-file plan.json \
+      --output-format markdown \
+      --output-file cost-report.md \
+      --slack-webhook "$(SLACK_WEBHOOK_URL)" \
+      --cost-threshold "$(COST_THRESHOLD)"
+  env:
+    SLACK_WEBHOOK_URL: $(SLACK_WEBHOOK_URL)
+  displayName: 'Run cost estimation'
+
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: 'cost-report.md'
+    artifact: 'cost-report'
+    publishLocation: 'pipeline'
+  displayName: 'Publish cost report'
+  condition: always()
+
+- bash: |
+    if [ -f cost-report.md ]; then
+      echo "##vso[task.uploadsummary]cost-report.md"
+    fi
+  displayName: 'Add cost report to pipeline summary'
+  condition: always()
+
+- bash: |
+    if [ -f cost-report.md ]; then
+      # Add PR comment using Azure DevOps REST API
+      REPORT_CONTENT=$(cat cost-report.md)
+      COMMENT_URL="$(System.PullRequest.RestUrl)/threads"
+      
+      curl -X POST "$COMMENT_URL" \
+        -H "Content-Type: application/json" \
+        -H "Authorization: Bearer $(System.AccessToken)" \
+        -d "{
+          'comments': [{
+            'parentCommentId': 0,
+            'content': '$REPORT_CONTENT',
+            'commentType': 1
+          }],
+          'status': 1
+        }"
+    fi
+  condition: and(succeeded(), eq(variables['Build.Reason'], 'PullRequest'))
+  displayName: 'Add cost report as PR comment'
+  env:
+    SYSTEM_ACCESSTOKEN: $(System.AccessToken)

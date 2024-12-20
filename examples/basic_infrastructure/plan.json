@@ -1,0 +1,142 @@
+{
+  "format_version": "1.1",
+  "terraform_version": "1.5.0",
+  "resource_changes": [
+    {
+      "address": "azurerm_linux_virtual_machine.example",
+      "type": "azurerm_linux_virtual_machine",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "admin_username": "adminuser",
+          "location": "eastus",
+          "name": "example-vm",
+          "resource_group_name": "example-resources",
+          "size": "Standard_D2s_v3",
+          "os_disk": [
+            {
+              "caching": "ReadWrite",
+              "storage_account_type": "Standard_LRS"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "address": "azurerm_managed_disk.example",
+      "type": "azurerm_managed_disk",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "disk_size_gb": 100,
+          "location": "eastus",
+          "name": "example-disk",
+          "resource_group_name": "example-resources",
+          "storage_account_type": "Standard_LRS"
+        }
+      }
+    },
+    {
+      "address": "azurerm_network_interface.example",
+      "type": "azurerm_network_interface",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "location": "eastus",
+          "name": "example-nic",
+          "resource_group_name": "example-resources"
+        }
+      }
+    },
+    {
+      "address": "azurerm_resource_group.example",
+      "type": "azurerm_resource_group",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "location": "eastus",
+          "name": "example-resources"
+        }
+      }
+    },
+    {
+      "address": "azurerm_storage_account.example",
+      "type": "azurerm_storage_account",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "account_replication_type": "LRS",
+          "account_tier": "Standard",
+          "location": "eastus",
+          "name": "examplestorageacct",
+          "resource_group_name": "example-resources"
+        }
+      }
+    },
+    {
+      "address": "azurerm_subnet.example",
+      "type": "azurerm_subnet",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "address_prefixes": [
+            "10.0.2.0/24"
+          ],
+          "name": "internal",
+          "resource_group_name": "example-resources",
+          "virtual_network_name": "example-network"
+        }
+      }
+    },
+    {
+      "address": "azurerm_virtual_network.example",
+      "type": "azurerm_virtual_network",
+      "name": "example",
+      "provider_name": "registry.terraform.io/hashicorp/azurerm",
+      "change": {
+        "actions": [
+          "create"
+        ],
+        "before": null,
+        "after": {
+          "address_space": [
+            "10.0.0.0/16"
+          ],
+          "location": "eastus",
+          "name": "example-network",
+          "resource_group_name": "example-resources"
+        }
+      }
+    }
+  ]
+}

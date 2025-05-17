@@ -1,118 +1,123 @@
 # TerraFin Calculator
 
-TerraFin Calculator is a cost estimation tool for Azure resources in Terraform plans. It analyzes your Terraform plan output and provides detailed cost breakdowns for your infrastructure changes.
+[![Build Status](https://github.com/ZacheryKuykendall/TerraFin/actions/workflows/cost-estimation.yml/badge.svg)](https://github.com/ZacheryKuykendall/TerraFin/actions/workflows/cost-estimation.yml)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
+[![Requests](https://img.shields.io/badge/requests-2.x-blue.svg)](https://docs.python-requests.org/)
+
+TerraFin Calculator is a command‑line tool that analyzes Terraform plan files and estimates the monthly cost of Azure resources. It combines a parser for Terraform JSON plans, resource‑specific cost handlers and the Azure Retail Pricing API to produce detailed reports.
 
 ## Features
 
 - Parse Terraform plan JSON files
 - Calculate estimated monthly costs for Azure resources
-- Generate detailed cost reports in a clear, tabular format
-- Support for various Azure resources including:
-  - Logic Apps (with actions and triggers)
-  - App Service Plans
-  - Virtual Machines
-  - Storage Accounts
-  - Managed Disks
-  - And more...
+- Generate reports in plain text, Markdown or JSON formats
+- Slack notification support
+- Support for Logic Apps, App Service Plans, Virtual Machines, Storage Accounts, Managed Disks and more
 
-## Installation
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10 or newer
+- Terraform 1.5.0 or newer
+
+### Installation
 
 1. Clone this repository
-2. Install dependencies:
+2. Install dependencies
+
 ```bash
 pip install -r requirements.txt
-pip install -e .
 ```
 
-## Usage
+The calculator can be executed directly from the source tree. If you prefer an editable install you can run `pip install -e .` after adding a packaging file.
 
-### Local Execution
+### Generating a Plan
 
-1. Generate a Terraform plan JSON file:
 ```bash
 terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
 ```
 
-2. Run the cost calculator:
+### Running the Calculator
+
+You can run the helper script or the module entry point.
+
 ```bash
+# Using the helper script
 python calculate_cost.py plan.json
+
+# Using the module
+python -m terrafin_calculator --plan-file plan.json --output-format text
 ```
 
-Example output:
-```
-+----------------------------------------------------------------------------------------------------------------------+
-|                                            Azure Resource Cost Estimation                                            |
-+----------------------------------------------------------------------------------------------------------------------+
-|                                                    Resource Costs                                                    |
-+----------------------------------------------------------------------------------------------------------------------+
-| Resource                                                     | Type                      | Monthly Cost    | Details       |
-+------------------------------------------------------------+---------------------------+-----------------+---------------+
-| module.ai_insights.azurerm_logic_app_action_custom.get_logs  | azurerm_logic_app_acti... | $0.00           |               |
-| module.ai_insights.azurerm_logic_app_trigger_custom.daily... | azurerm_logic_app_trig... | $0.00           |               |
-| module.ai_insights.azurerm_logic_app_workflow.log_analyzer   | azurerm_logic_app_work... | $12.50          | location: ... |
-| module.ai_insights.azurerm_service_plan.function             | azurerm_service_plan      | $54.75          | location: ... |
-+----------------------------------------------------------------------------------------------------------------------+
-|                                                       Summary                                                        |
-+----------------------------------------------------------------------------------------------------------------------+
-|                                         Total Estimated Monthly Cost: $67.25                                         |
-|                                              Cost is within threshold!                                               |
-+----------------------------------------------------------------------------------------------------------------------+
+Reports can be written to a file or sent to Slack using the `--output-file` and `--slack-webhook` options. You may also specify `--cost-threshold` to fail the command if estimated monthly costs exceed your threshold.
+Alternatively, you can define the environment variable `SLACK_WEBHOOK_URL` so the `--slack-webhook` flag is unnecessary.
+
+### Example Output
+
+```text
++----------------------------------------------------------------------------------------------------------------+
+|                                            Azure Resource Cost Estimation                                      |
++----------------------------------------------------------------------------------------------------------------+
+|                                                    Resource Costs                                              |
++----------------------------------------------------------------------------------------------------------------+
+| Resource                                                     | Type                      | Monthly Cost | Details |
+| module.ai_insights.azurerm_logic_app_workflow.log_analyzer   | azurerm_logic_app_workflow| $12.50       | location: ... |
++----------------------------------------------------------------------------------------------------------------+
+|                                                       Summary                                                   |
++----------------------------------------------------------------------------------------------------------------+
+|                                         Total Estimated Monthly Cost: $67.25                                   |
+|                                              Cost is within threshold!                                         |
++----------------------------------------------------------------------------------------------------------------+
 ```
 
 ### Cost Calculation Details
 
-The calculator provides accurate cost estimates based on Azure's pricing models:
+The calculator uses Azure pricing models for accurate estimates:
 
-- **Logic Apps**:
-  - Workflow: $0.000125 per execution (standard connectors)
-  - Actions & Triggers: Included in workflow cost
-- **App Service Plans**:
-  - B1 (Basic): $54.75/month
-  - B2 (Basic): $109.50/month
-  - B3 (Basic): $218.99/month
-- **Virtual Machines**: Based on size and region
-- **Storage Accounts**: Based on type, replication, and estimated usage
-- **Managed Disks**: Based on size and type
+- **Logic Apps**
+  - Workflow executions: $0.000125 each (standard connectors)
+  - Actions and triggers included in workflow cost
+- **App Service Plans**
+  - B1: $54.75/month
+  - B2: $109.50/month
+  - B3: $218.99/month
+- **Virtual Machines** – based on size and region
+- **Storage Accounts** – based on type, replication and usage
+- **Managed Disks** – based on size and tier
 
 ## Development
 
-### Adding New Resource Types
+Run the test suite with `pytest` (requires the packages in `requirements.txt`). The `Makefile` includes convenience commands:
 
-1. Add a new handler class in `terrafin_calculator/resource_handlers.py`
-2. Register the handler in the `RESOURCE_HANDLERS` dictionary
-3. Implement the `calculate_cost` method
-4. Add test cases
+```bash
+make test   # run unit tests with coverage
+make lint   # run flake8, black and isort checks
+```
 
-Example handler implementation:
+To add new resource types, implement a handler in `terrafin_calculator/resource_handlers.py`, register it in `RESOURCE_HANDLERS` and provide unit tests under `tests/`.
+
+Example handler skeleton:
+
 ```python
 class LogicAppHandler(ResourceHandler):
-    """Handler for Azure Logic App resources."""
+    """Handler for Azure Logic Apps."""
 
     def calculate_cost(self, resource_config: Dict[str, Any]) -> Optional[float]:
-        """Calculate monthly cost for a Logic App.
-        
-        Basic pricing:
-        - Standard connector actions: $0.000125 per execution
-        - Enterprise connector actions: $0.001 per execution
-        - Built-in actions: Free
-        """
-        try:
-            executions = 100000  # Estimate 100,000 executions per month
-            cost_per_execution = 0.000125  # Standard connector rate
-            monthly_cost = executions * cost_per_execution
-            return monthly_cost
-        except Exception as e:
-            logger.error(f"Error calculating Logic App cost: {str(e)}")
-            return None
+        """Calculate monthly cost for a Logic App."""
+        executions = 100000  # estimated executions per month
+        rate = 0.000125  # standard connector rate
+        return executions * rate
 ```
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Submit a pull request
+1. Fork the repository and create a feature branch
+2. Commit your changes with clear messages
+3. Submit a pull request for review
 
 ## License
 
-MIT License - see LICENSE file for details
+TerraFin is released under the MIT License. See [LICENSE](LICENSE) for details.

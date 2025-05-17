@@ -208,3 +208,31 @@ def test_unknown_resource_handling(sample_plan_json):
     md_report = calculator.format_cost_report(breakdown, 'markdown')
     assert "## Resources with Unknown Costs" in md_report
     assert "* test.unknown_resource" in md_report
+
+
+def test_app_service_plan_with_sku_block(tmp_path):
+    """Ensure App Service Plan costs are calculated when SKU is in a block."""
+    plan_data = {
+        "resource_changes": [
+            {
+                "address": "azurerm_service_plan.test",
+                "type": "azurerm_service_plan",
+                "name": "test",
+                "change": {
+                    "actions": ["create"],
+                    "after": {
+                        "location": "eastus",
+                        "sku": [{"size": "B1"}]
+                    }
+                }
+            }
+        ]
+    }
+
+    plan_file = tmp_path / "plan.json"
+    plan_file.write_text(json.dumps(plan_data))
+
+    calculator = CostCalculator(str(plan_file))
+    breakdown = calculator.calculate_costs()
+
+    assert breakdown.total_monthly_cost == pytest.approx(54.75)

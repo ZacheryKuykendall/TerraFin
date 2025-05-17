@@ -254,11 +254,23 @@ class AppServicePlanHandler(ResourceHandler):
     def calculate_cost(self, resource_config: Dict[str, Any]) -> Optional[float]:
         """Calculate monthly cost for an App Service Plan."""
         raw_values = resource_config.get('raw_values', {})
-        sku = raw_values.get('sku_name', '')
+
+        # sku can be provided as "sku_name" or inside a "sku" block depending on
+        # the Terraform resource version. Support both to avoid missing pricing.
+        sku = raw_values.get('sku_name')
+        if not sku:
+            sku_info = raw_values.get('sku')
+            if isinstance(sku_info, list) and sku_info:
+                sku_info = sku_info[0]
+            if isinstance(sku_info, dict):
+                sku = sku_info.get('size') or sku_info.get('name')
+
         location = self._get_location(resource_config)
 
         if not (sku and location):
-            logger.warning(f"Missing required App Service Plan parameters: sku={sku}, location={location}")
+            logger.warning(
+                f"Missing required App Service Plan parameters: sku={sku}, location={location}"
+            )
             return None
 
         try:
@@ -300,6 +312,7 @@ RESOURCE_HANDLERS: Dict[str, Type[ResourceHandler]] = {
     'azurerm_logic_app_action_custom': LogicAppActionHandler,
     'azurerm_logic_app_trigger_custom': LogicAppTriggerHandler,
     'azurerm_service_plan': AppServicePlanHandler,
+    'azurerm_app_service_plan': AppServicePlanHandler,
 }
 
 

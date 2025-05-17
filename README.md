@@ -40,6 +40,19 @@ terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
 ```
 
+If you want to run cost estimation automatically without chaining multiple
+commands, use the `terrafin` wrapper included in this repository. It behaves
+just like the Terraform CLI, so you can run `terrafin init`, `terrafin plan` or
+any other subcommand. When you run `terrafin plan`, the plan is captured,
+converted to JSON and fed to the cost calculator automatically:
+
+```bash
+./terrafin plan
+```
+This wrapper executes `terraform plan`, converts the output to JSON, runs the
+cost calculator and prints the report. Other commands are passed directly to the
+Terraform binary.
+
 ### Running the Calculator
 
 You can run the helper script or the module entry point.

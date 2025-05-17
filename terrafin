@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+# Terrafin CLI wrapper for Terraform with integrated cost estimation
+
+set -euo pipefail
+
+TF_BIN=${TF_BIN:-terraform}
+
+if [ "$#" -lt 1 ]; then
+    echo "Usage: $0 <command> [args]" >&2
+    exit 1
+fi
+
+cmd="$1"
+shift
+
+case "$cmd" in
+    plan)
+        PLAN_OUT=$(mktemp tfplan-XXXX.out)
+        PLAN_JSON=$(mktemp plan-XXXX.json)
+
+        "$TF_BIN" plan "$@" -out="$PLAN_OUT"
+        "$TF_BIN" show -json "$PLAN_OUT" > "$PLAN_JSON"
+
+        python calculate_cost.py "$PLAN_JSON"
+
+        rm -f "$PLAN_OUT" "$PLAN_JSON"
+        ;;
+    *)
+        "$TF_BIN" "$cmd" "$@"
+        ;;
+esac

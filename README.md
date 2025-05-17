@@ -40,6 +40,16 @@ terraform plan -out=tfplan
 terraform show -json tfplan > plan.json
 ```
 
+If you want to run cost estimation automatically, a convenience script
+`terraform.sh` is provided. Use it in place of the Terraform binary or alias it
+as `terraform`. Pass any usual `plan` arguments after the command:
+
+```bash
+./terraform.sh plan
+```
+This wrapper executes `terraform plan`, converts the plan to JSON, runs the cost
+calculator and prints the report.
+
 ### Running the Calculator
 
 You can run the helper script or the module entry point.
